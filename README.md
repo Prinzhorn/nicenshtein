@@ -8,7 +8,7 @@ Check out [nicenshtein-server](https://github.com/Prinzhorn/nicenshtein-server) 
 
 # API
 
-## NewNicenshtein
+## NewNicenshtein()
 
 Returns a new instance of a Nicenshtein index with the following methods:
 
