@@ -39,7 +39,7 @@ func TestContainsWord(t *testing.T) {
 	}
 }
 
-func TestCollectClosestWords(t *testing.T) {
+func TestCollectWords(t *testing.T) {
 	nice := NewNicenshtein()
 
 	nice.AddWord("Prinzhorn")
@@ -49,7 +49,7 @@ func TestCollectClosestWords(t *testing.T) {
 
 	closestWords := make(map[string]byte)
 
-	nice.CollectClosestWords(&closestWords, "Prinzhorn", 2)
+	nice.CollectWords(&closestWords, "Prinzhorn", 2)
 
 	if !reflect.DeepEqual(closestWords, map[string]byte{"Prinzhorn": 0, "prinzhorn": 1}) {
 		t.Error("Prinzhorn + prinzhorn not found")
@@ -57,7 +57,7 @@ func TestCollectClosestWords(t *testing.T) {
 
 	closestWords = make(map[string]byte)
 
-	nice.CollectClosestWords(&closestWords, "Creme fraîche", 2)
+	nice.CollectWords(&closestWords, "Creme fraîche", 2)
 
 	if !reflect.DeepEqual(closestWords, map[string]byte{"Crème fraîche": 1}) {
 		t.Error("Crème fraîche not found")
@@ -65,7 +65,7 @@ func TestCollectClosestWords(t *testing.T) {
 
 	closestWords = make(map[string]byte)
 
-	nice.CollectClosestWords(&closestWords, "👻💩💩💩👻", 2)
+	nice.CollectWords(&closestWords, "👻💩💩💩👻", 2)
 
 	if !reflect.DeepEqual(closestWords, map[string]byte{"👻💩💩👻": 1}) {
 		t.Error("👻💩💩👻 not found")
@@ -113,7 +113,7 @@ func BenchmarkContainsWord(b *testing.B) {
 	}
 }
 
-func BenchmarkCollectClosestWords(b *testing.B) {
+func BenchmarkCollectWords(b *testing.B) {
 	nice := NewNicenshtein()
 
 	prepareIndex(&nice)
@@ -124,6 +124,6 @@ func BenchmarkCollectClosestWords(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		out := make(map[string]byte)
-		nice.CollectClosestWords(&out, word, 3)
+		nice.CollectWords(&out, word, 3)
 	}
 }

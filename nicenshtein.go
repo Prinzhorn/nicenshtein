@@ -7,7 +7,7 @@ import (
 	"unicode/utf8"
 )
 
-//A Trie structure that maps runes to a list of following (child-) runes.
+//A trie structure that maps runes to a list of following (child-) runes.
 //`word` serves two purposes:
 //1. If it is not an empty string, it marks the end of a word like a flag
 //2. It stores the word that the path to it spells
@@ -95,7 +95,11 @@ func (nice *Nicenshtein) ContainsWord(word string) bool {
 	return currentNode.word == word
 }
 
-func (nice *Nicenshtein) collectClosestWords(out *map[string]byte, currentNode *RuneNode, word string, distance byte, maxDistance byte) {
+func (nice *Nicenshtein) CollectWords(out *map[string]byte, word string, maxDistance byte) {
+	nice.collectWords(out, nice.root, word, 0, maxDistance)
+}
+
+func (nice *Nicenshtein) collectWords(out *map[string]byte, currentNode *RuneNode, word string, distance byte, maxDistance byte) {
 	//We have eated all runes, let's see if we have reached a node with a valid word.
 	if len(word) == 0 {
 		if currentNode.word != "" {
@@ -116,13 +120,13 @@ func (nice *Nicenshtein) collectClosestWords(out *map[string]byte, currentNode *
 
 	if nextNode != nil {
 		//Move forward by one rune without incrementing the distance.
-		//This is just regular Trie walking sans Levenshtein.
-		nice.collectClosestWords(out, nextNode, wordWithoutFirstRune, distance, maxDistance)
+		//This is just regular trie walking sans Levenshtein.
+		nice.collectWords(out, nextNode, wordWithoutFirstRune, distance, maxDistance)
 	}
 
-	//Here we keep walking the Trie, but with a twist.
+	//Here we keep walking the trie, but with a twist.
 	//We do each of the Levenshtein edits at the current position
-	//and walk the Trie as if nothing cool has happened.
+	//and walk the trie as if nothing cool has happened.
 	if distance < maxDistance {
 		distance++
 
@@ -130,17 +134,13 @@ func (nice *Nicenshtein) collectClosestWords(out *map[string]byte, currentNode *
 		//for every rune at the current node.
 		for runeValue, _ := range currentNode.children {
 			//Substitution (replace the first rune with the current one).
-			nice.collectClosestWords(out, currentNode, string(runeValue)+wordWithoutFirstRune, distance, maxDistance)
+			nice.collectWords(out, currentNode, string(runeValue)+wordWithoutFirstRune, distance, maxDistance)
 
 			//Insertion (add the current rune as prefix).
-			nice.collectClosestWords(out, currentNode, string(runeValue)+word, distance, maxDistance)
+			nice.collectWords(out, currentNode, string(runeValue)+word, distance, maxDistance)
 		}
 
 		//Deletion (skip first rune).
-		nice.collectClosestWords(out, currentNode, wordWithoutFirstRune, distance, maxDistance)
+		nice.collectWords(out, currentNode, wordWithoutFirstRune, distance, maxDistance)
 	}
-}
-
-func (nice *Nicenshtein) CollectClosestWords(out *map[string]byte, word string, maxDistance byte) {
-	nice.collectClosestWords(out, nice.root, word, 0, maxDistance)
 }
