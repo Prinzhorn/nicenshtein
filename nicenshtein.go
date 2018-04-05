@@ -13,7 +13,7 @@ import (
 //2. It stores the word that the path to it spells
 type RuneNode struct {
 	children map[rune]*RuneNode
-	length   uint16
+	length   int
 	word     string
 }
 
@@ -52,16 +52,19 @@ func (nice *Nicenshtein) IndexFile(filePath string) error {
 }
 
 func (nice *Nicenshtein) AddWord(word string) {
-	if len(word) == 0 {
+	numRunes := utf8.RuneCountInString(word)
+
+	if numRunes == 0 {
 		return
 	}
 
-	var currentNode *RuneNode = nice.root
+	currentNode := nice.root
+	runeIndex := 0
 
-	for index, runeValue := range word {
+	for _, runeValue := range word {
 		//Store the length of the largest word below this node.
-		if uint16(len(word)-index) > currentNode.length {
-			currentNode.length = uint16(len(word) - index)
+		if numRunes-runeIndex > currentNode.length {
+			currentNode.length = numRunes - runeIndex
 		}
 
 		childNode, ok := currentNode.children[runeValue]
@@ -72,22 +75,23 @@ func (nice *Nicenshtein) AddWord(word string) {
 			currentNode.children[runeValue] = childNode
 		}
 
-		//The node at the end of a word stores the full word, which also marks the end.
-		//This makes the index less memory efficient, but vastly improves query performance.
-		//Otherwise each query would need to collect the runes along the path and concat the word.
-		if index == len(word)-len(string(runeValue)) {
-			childNode.word = word
-		}
-
 		currentNode = childNode
+		runeIndex++
 	}
+
+	//The node at the end of a word stores the full word, which also marks the end.
+	//This makes the index less memory efficient, but vastly improves query performance.
+	//Otherwise each query would need to collect the runes along the path and concat the word.
+	currentNode.word = word
 }
 
 func (nice *Nicenshtein) ContainsWord(word string) bool {
-	var currentNode *RuneNode = nice.root
+	currentNode := nice.root
+	numRunes := utf8.RuneCountInString(word)
+	runeIndex := 0
 
 	for _, runeValue := range word {
-		if currentNode.length < uint16(len(word)) {
+		if numRunes-runeIndex > currentNode.length {
 			return false
 		}
 
@@ -99,19 +103,22 @@ func (nice *Nicenshtein) ContainsWord(word string) bool {
 		}
 
 		currentNode = childNode
+		runeIndex++
 	}
 
 	//Does this node terminate with the given word?
 	return currentNode.word == word
 }
 
-func (nice *Nicenshtein) CollectWords(out *map[string]byte, word string, maxDistance byte) {
-	nice.collectWords(out, nice.root, word, 0, maxDistance)
+func (nice *Nicenshtein) CollectWords(out *map[string]int, word string, maxDistance int) {
+	nice.collectWords(out, nice.root, word, 0, 0, maxDistance)
 }
 
-func (nice *Nicenshtein) collectWords(out *map[string]byte, currentNode *RuneNode, word string, distance, maxDistance byte) {
+func (nice *Nicenshtein) collectWords(out *map[string]int, currentNode *RuneNode, word string, depth int, distance, maxDistance int) {
+	numRunes := utf8.RuneCountInString(word)
+
 	//We have eated all runes, let's see if we have reached a node with a valid word.
-	if len(word) == 0 {
+	if numRunes == 0 {
 		//A word does indeed terminate at this node.
 		if currentNode.word != "" {
 			knownDistance, ok := (*out)[currentNode.word]
@@ -128,7 +135,8 @@ func (nice *Nicenshtein) collectWords(out *map[string]byte, currentNode *RuneNod
 	remainingEdits := maxDistance - distance
 
 	//There are no words below this node long enough.
-	if currentNode.length < uint16(len(word)-int(remainingEdits)) {
+	if currentNode.length < numRunes-depth-remainingEdits {
+		//fmt.Printf("awkward %d %d %d %s\n", currentNode.length, numRunes, remainingEdits, word)
 		return
 	}
 
@@ -139,7 +147,7 @@ func (nice *Nicenshtein) collectWords(out *map[string]byte, currentNode *RuneNod
 	if nextNode != nil {
 		//Move forward by one rune without incrementing the distance.
 		//This is just regular trie walking sans Levenshtein.
-		nice.collectWords(out, nextNode, wordWithoutFirstRune, distance, maxDistance)
+		nice.collectWords(out, nextNode, wordWithoutFirstRune, depth+1, distance, maxDistance)
 	}
 
 	//Here we keep walking the trie, but with a twist.
@@ -152,13 +160,13 @@ func (nice *Nicenshtein) collectWords(out *map[string]byte, currentNode *RuneNod
 		//for every rune at the current node.
 		for runeValue, _ := range currentNode.children {
 			//Substitution (replace the first rune with the current one).
-			nice.collectWords(out, currentNode, string(runeValue)+wordWithoutFirstRune, distance, maxDistance)
+			nice.collectWords(out, currentNode, string(runeValue)+wordWithoutFirstRune, depth+1, distance, maxDistance)
 
 			//Insertion (add the current rune as prefix).
-			nice.collectWords(out, currentNode, string(runeValue)+word, distance, maxDistance)
+			nice.collectWords(out, currentNode, string(runeValue)+word, depth+1, distance, maxDistance)
 		}
 
 		//Deletion (skip first rune).
-		nice.collectWords(out, currentNode, wordWithoutFirstRune, distance, maxDistance)
+		nice.collectWords(out, currentNode, wordWithoutFirstRune, depth+1, distance, maxDistance)
 	}
 }

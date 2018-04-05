@@ -47,27 +47,27 @@ func TestCollectWords(t *testing.T) {
 	nice.AddWord("Crème fraîche")
 	nice.AddWord("👻💩💩👻")
 
-	closestWords := make(map[string]byte)
+	closestWords := make(map[string]int)
 
 	nice.CollectWords(&closestWords, "Prinzhorn", 2)
 
-	if !reflect.DeepEqual(closestWords, map[string]byte{"Prinzhorn": 0, "prinzhorn": 1}) {
+	if !reflect.DeepEqual(closestWords, map[string]int{"Prinzhorn": 0, "prinzhorn": 1}) {
 		t.Error("Prinzhorn + prinzhorn not found")
 	}
 
-	closestWords = make(map[string]byte)
+	closestWords = make(map[string]int)
 
 	nice.CollectWords(&closestWords, "Creme fraîche", 2)
 
-	if !reflect.DeepEqual(closestWords, map[string]byte{"Crème fraîche": 1}) {
+	if !reflect.DeepEqual(closestWords, map[string]int{"Crème fraîche": 1}) {
 		t.Error("Crème fraîche not found")
 	}
 
-	closestWords = make(map[string]byte)
+	closestWords = make(map[string]int)
 
 	nice.CollectWords(&closestWords, "👻💩💩💩👻", 2)
 
-	if !reflect.DeepEqual(closestWords, map[string]byte{"👻💩💩👻": 1}) {
+	if !reflect.DeepEqual(closestWords, map[string]int{"👻💩💩👻": 1}) {
 		t.Error("👻💩💩👻 not found")
 	}
 }
@@ -123,7 +123,7 @@ func BenchmarkCollectWords(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		out := make(map[string]byte)
+		out := make(map[string]int)
 		nice.CollectWords(&out, word, 3)
 	}
 }
