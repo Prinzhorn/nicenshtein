@@ -13,6 +13,7 @@ import (
 //2. It stores the word that the path to it spells
 type RuneNode struct {
 	children map[rune]*RuneNode
+	length   uint16
 	word     string
 }
 
@@ -22,7 +23,7 @@ type Nicenshtein struct {
 
 func NewNicenshtein() Nicenshtein {
 	var nice Nicenshtein
-	nice.root = &RuneNode{make(map[rune]*RuneNode), ""}
+	nice.root = &RuneNode{make(map[rune]*RuneNode), 0, ""}
 
 	return nice
 }
@@ -58,11 +59,16 @@ func (nice *Nicenshtein) AddWord(word string) {
 	var currentNode *RuneNode = nice.root
 
 	for index, runeValue := range word {
+		//Store the length of the largest word below this node.
+		if uint16(len(word)-index) > currentNode.length {
+			currentNode.length = uint16(len(word) - index)
+		}
+
 		childNode, ok := currentNode.children[runeValue]
 
 		//We have not indexed this rune yet, create a new entry.
 		if !ok {
-			childNode = &RuneNode{make(map[rune]*RuneNode), ""}
+			childNode = &RuneNode{make(map[rune]*RuneNode), 0, ""}
 			currentNode.children[runeValue] = childNode
 		}
 
@@ -81,6 +87,10 @@ func (nice *Nicenshtein) ContainsWord(word string) bool {
 	var currentNode *RuneNode = nice.root
 
 	for _, runeValue := range word {
+		if currentNode.length < uint16(len(word)) {
+			return false
+		}
+
 		childNode, ok := currentNode.children[runeValue]
 
 		//Current rune not indexed, dead end.
@@ -99,9 +109,10 @@ func (nice *Nicenshtein) CollectWords(out *map[string]byte, word string, maxDist
 	nice.collectWords(out, nice.root, word, 0, maxDistance)
 }
 
-func (nice *Nicenshtein) collectWords(out *map[string]byte, currentNode *RuneNode, word string, distance byte, maxDistance byte) {
+func (nice *Nicenshtein) collectWords(out *map[string]byte, currentNode *RuneNode, word string, distance, maxDistance byte) {
 	//We have eated all runes, let's see if we have reached a node with a valid word.
 	if len(word) == 0 {
+		//A word does indeed terminate at this node.
 		if currentNode.word != "" {
 			knownDistance, ok := (*out)[currentNode.word]
 
@@ -111,6 +122,13 @@ func (nice *Nicenshtein) collectWords(out *map[string]byte, currentNode *RuneNod
 			}
 		}
 
+		return
+	}
+
+	remainingEdits := maxDistance - distance
+
+	//There are no words below this node long enough.
+	if currentNode.length < uint16(len(word)-int(remainingEdits)) {
 		return
 	}
 
@@ -127,7 +145,7 @@ func (nice *Nicenshtein) collectWords(out *map[string]byte, currentNode *RuneNod
 	//Here we keep walking the trie, but with a twist.
 	//We do each of the Levenshtein edits at the current position
 	//and walk the trie as if nothing cool has happened.
-	if distance < maxDistance {
+	if remainingEdits > 0 {
 		distance++
 
 		//For substitution and insertion we need to apply them
