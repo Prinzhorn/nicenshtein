@@ -2,7 +2,7 @@ package nicenshtein
 
 import (
 	"encoding/base64"
-
+	"fmt"
 	"math/rand"
 	"reflect"
 	"strconv"
@@ -69,6 +69,26 @@ func TestCollectWords(t *testing.T) {
 
 	if !reflect.DeepEqual(closestWords, map[string]int{"👻💩💩👻": 1}) {
 		t.Error("👻💩💩👻 not found")
+	}
+}
+
+func TestIndexFile(t *testing.T) {
+	nice := NewNicenshtein()
+
+	nice.IndexFile("./password.1.txt")
+
+	closestWords := make(map[string]int)
+
+	nice.CollectWords(&closestWords, "password", 1)
+
+	if !nice.ContainsWord("password1") {
+		t.Error("Should contain password1")
+	}
+
+	//81 is the number of passwords in password.1.txt.
+	//They are all within a distance of 1 to "password".
+	if len(closestWords) != 81 {
+		t.Error(fmt.Sprintf("Should return 81 results for \"password\", got %d", len(closestWords)))
 	}
 }
 

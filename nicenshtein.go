@@ -116,6 +116,7 @@ func (nice *Nicenshtein) CollectWords(out *map[string]int, word string, maxDista
 
 func (nice *Nicenshtein) collectWords(out *map[string]int, currentNode *RuneNode, word string, depth int, distance, maxDistance int) {
 	numRunes := utf8.RuneCountInString(word)
+	remainingEdits := maxDistance - distance
 
 	//We have eated all runes, let's see if we have reached a node with a valid word.
 	if numRunes == 0 {
@@ -129,14 +130,18 @@ func (nice *Nicenshtein) collectWords(out *map[string]int, currentNode *RuneNode
 			}
 		}
 
+		//This catches the case where we have eaten all runes but we can still insert new ones at the end.
+		if remainingEdits > 0 {
+			for runeValue, _ := range currentNode.children {
+				nice.collectWords(out, currentNode, string(runeValue), depth+1, distance+1, maxDistance)
+			}
+		}
+
 		return
 	}
 
-	remainingEdits := maxDistance - distance
-
 	//There are no words below this node long enough.
 	if currentNode.length < numRunes-depth-remainingEdits {
-		//fmt.Printf("awkward %d %d %d %s\n", currentNode.length, numRunes, remainingEdits, word)
 		return
 	}
 
