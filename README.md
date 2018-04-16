@@ -1,3 +1,5 @@
+Note: this was mostly meant for me to learn some basic Go. Right now it is really slow for distances > 2 (slower than the naive approach).
+
 # Nicenshtein
 
 Efficiently index and search a dictionary by Levenshtein distance. This is done by creating a trie (prefix tree) as an index and then walking the trie for collecting all words within a given distance. We keep track of the number of edits that have been made and walk multiple paths at the same time until all edits are consumed.
